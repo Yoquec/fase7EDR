@@ -3,7 +3,11 @@
 .ipynb_checkpoints
 # ignore data folder
 data
+*.csv
+
+# ignore test files
 test.*
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
