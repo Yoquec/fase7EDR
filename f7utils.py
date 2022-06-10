@@ -12,7 +12,7 @@ def plotExperiment(exp: pd.DataFrame, size: Tuple[int, int] = (20, 8)) -> None:
 
     # X coordinate plot
     axis[0, 0].plot(exp.x_pos, -1 * exp.index)
-    axis[0, 0].set_title("X coordinate")
+    axis[0, 0].set_title("X trayectory")
     axis[0, 1].plot(exp.y_pos)
     axis[0, 1].set_title("Y coordinate")
     axis[1, 0].plot(exp.x_vel)
@@ -32,16 +32,17 @@ def plotExperiment(exp: pd.DataFrame, size: Tuple[int, int] = (20, 8)) -> None:
 
     return
 
-def cleanZeroes(exp: pd.DataFrame, var:str = "y_pos") -> pd.DataFrame:
+def cleanZeroes(exper: pd.DataFrame, var:str = "y_pos") -> pd.DataFrame:
     """
     Function to clean unintended zeros (noise) like in the y_pos variable
     New value -> Mean of the two contiguous observations
     """
-    explen = exp.shape[0]
-    idxs = exp[exp[var]==0].index.tolist()
+    explen = exper.shape[0]
+    zeroIdxs = exper[exper[var]==0].index.tolist()
 
-    for i in idxs:
+    for i in zeroIdxs:
         if (i != 0) and (i != explen - 1):
-            exp[i,1] = np.mean(exp[var][i-1],exp[var][i+1])   
+            exper[var][i] = (exper[var][i-1] + exper[var][i+1])/2
 
-    return exp
+    return exper
+
