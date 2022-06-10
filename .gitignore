@@ -1,6 +1,8 @@
 # Vscode and Jupyter checkpoints
 .vscode
 .ipynb_checkpoints
+# ignore data folder
+data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
