@@ -2,10 +2,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import Tuple
-from termcolor import colored
+try: 
+    from termcolor import colored
+    COLORFUL = True
+except ImportError as ie:
+    COLORFUL = False
 
-WARNINGSTR = colored("WARNING", "red", attrs=["reverse", "blink"])
-WARNINGLEVE = colored("WARNING", "#ff9999", attrs=["reverse", "blink"])
+if COLORFUL:
+    WARNINGSTR = colored("WARNING", "red", attrs=["reverse", "blink"])
+    WARNINGLEVE = colored("WARNING", "#ff9999", attrs=["reverse", "blink"])
+else:
+    WARNINGSTR = "WARNING"
+    WARNINGLEVE = WARNINGSTR
 
 def plotExperiment(exp: pd.DataFrame, size: Tuple[int, int] = (20, 8)) -> None:
     """

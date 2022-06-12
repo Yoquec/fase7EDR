@@ -13,10 +13,17 @@ from f7utils import expLanded
 import pandas as pd
 import sys
 from typing import List
-from termcolor import colored
+try: 
+    from termcolor import colored
+    COLORFUL = True
+except ImportError as ie:
+    COLORFUL = False
 import os
 
-FINISHED = colored("FINISHED", "green", attrs=["reverse", "blink"])
+if COLORFUL:
+    FINISHED = colored("FINISHED", "green", attrs=["reverse", "blink"])
+else:
+    FINISHED = "FINISHED"
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -40,7 +47,10 @@ if __name__ == "__main__":
             landed += 1
         del exp
 
-    print(f"{FINISHED}: There are {colored(str(landed),'white', attrs=['reverse', 'blink'])} experiments that landed")
+    if COLORFUL:
+        print(f"{FINISHED}: There are {colored(str(landed),'white', attrs=['reverse', 'blink'])} experiments that landed")
+    else:
+        print(f"{FINISHED}: There are {str(landed)} experiments that landed")
 
     with open(OUTFILE, "w+") as outfile:
         for experiment in contains:
