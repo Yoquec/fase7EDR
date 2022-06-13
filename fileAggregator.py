@@ -177,7 +177,7 @@ file will be {getColoredText(outfile, 'blue')}")
         del exp
         expn += 1
 
-    print("\n\t[{getColoredText('ANALYZING', 'cyan')}]: {getColoredText('Finished', 'magenta')}")
+    print(f"\n\t[{getColoredText('ANALYZING', 'cyan')}]: {getColoredText('Finished', 'magenta')}")
     
     # Add the new columns to the dataframe
     print(f"\n[{getColoredText('INFO', 'green')}]: Adding variables to the dataframe")
