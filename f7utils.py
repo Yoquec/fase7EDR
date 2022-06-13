@@ -10,7 +10,7 @@ except ImportError as ie:
 
 if COLORFUL:
     WARNINGSTR = colored("WARNING", "red", attrs=["reverse", "blink"])
-    WARNINGLEVE = colored("WARNING", "#ff9999", attrs=["reverse", "blink"])
+    WARNINGLEVE = colored("WARNING", "magenta", attrs=["reverse", "blink"])
 else:
     WARNINGSTR = "WARNING"
     WARNINGLEVE = WARNINGSTR

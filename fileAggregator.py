@@ -3,7 +3,7 @@ Created on Sat Jun 11 09:15:45 PM CEST 2022
 
 @file: fileAggregator.py
 
-@author: Yoquec
+@author: Yoquec (github)
 
 @description:
     Archivo de python que analizará todos los experimentos buscando
@@ -48,7 +48,9 @@ which seems to not be installed in your system.
 It's purpose is to provide colorful and more informative prints in the terminal
 
 To install it, stop the script with CTRL-C and type:
-\t> python -m pip install termcolor
+\t>>> python3 -m pip install termcolor
+Or, get all the optional dependencies at once running
+\t>>> python3 -m pip install -r requirements.txt
 """)
     COLORFUL = False
 
@@ -58,6 +60,32 @@ DEFOUTFILE = "aggregateData.csv"
 DATASETS = ["train", "test"]
 
 #------------------FUNCTIONS------------------
+def getColoredText(string: str, color:str, highlight: bool = False , hascolor:bool = COLORFUL) -> str:
+    """
+    Function to generate colorful terminal text
+    """
+    if hascolor:
+        if highlight:
+            text = colored(string, color, attrs=["reverse", "blink"])
+        else:
+            text = colored(string, color)
+    else:
+        text = string
+
+    return text
+
+def confirmArgs(str) -> bool:
+    """
+    Function to make sure that the arguments have been introduced correctly
+    """
+    if str.lower() == "n":
+        print(f"\n{getColoredText('WARNING', 'magenta', highlight=True)}: Specify your \
+own arguments in the command-line. \nType {getColoredText('python3 fileAggregator.py -h', 'green')} \
+for more help")
+        return False
+    else:
+        return True
+
 def getArgumentParser() -> argparse.ArgumentParser:
     """
     Function that prepares an argument parser with argument options
@@ -115,24 +143,33 @@ if __name__ == "__main__":
     # Get arguments
     dataset, outfile = getArguments()
     DATAFOLDER = f"data/{DATASETS[dataset]}"
-    print(f"The selected dataset is {DATASETS[dataset]} and the output file will be {outfile}")
+    print(f"\n[{getColoredText('INFO', 'green')}]:The selected dataset is \
+{getColoredText(DATASETS[dataset], 'white', highlight=True)} and the output \
+file will be {getColoredText(outfile, 'blue')}")
+
+    # Check the args are correct
+    if not confirmArgs(input("\nContinue? [Y/n]: ")):
+        exit()
 
     # Open the xlsx 
-    #TODO: Ver si acaso el nombre de esto está bien
-    summary = pd.read_excel(f"data/experiments_summary_{DATASETS[dataset]}.xlsx")
+    print(f"\n[{getColoredText('INFO', 'green')}]: Opening file \
+{getColoredText('data/experiments_summary_{}.xlsx'.format(DATASETS[dataset]), 'blue')}")
+    summary = pd.read_excel(f"data/experiments_summary_{DATASETS[dataset]}.xlsx", 0)
     
     # Prepare np arrays to add to the dataframe
     lands = np.zeros(shape=summary.shape[0])
 
     # Analize each of the experiments
+    print(f"\n\t[{getColoredText('ANALYZING', 'cyan')}]: Analyzing csvs")
     expn = 0
-    for expfile in summary.filename: #TODO: Comprobar si el nombre está bien
+    for expfile in summary.filename:
         exp: pd.DataFrame = pd.read_csv(f"{DATAFOLDER}/{expfile}")
         # Analisys magic: {{{
 
             # Experiment Landing
         explands = expLanded(exp)
-        if explands: lands[expn] = explands
+        if explands: 
+            lands[expn] = explands
             
             # X variance #TODO
 
@@ -140,7 +177,14 @@ if __name__ == "__main__":
         del exp
         expn += 1
 
+    print("\n\t[{getColoredText('ANALYZING', 'cyan')}]: {getColoredText('Finished', 'magenta')}")
+    
     # Add the new columns to the dataframe
-    #TODO: ¿Esto funciona?
-    summary.lands = lands
+    print(f"\n[{getColoredText('INFO', 'green')}]: Adding variables to the dataframe")
+    summary["lands"] = lands
+
+    # Write the file
+    print(f"\n[{getColoredText('INFO', 'green')}]: Saving the file to a csv format to {getColoredText('data/{}'.format(outfile), 'blue')}")
+    summary.to_csv(f"data/{outfile}")
+    print(f"\n[{getColoredText('FINISHED', 'magenta')}]: {getColoredText('OK', 'green')}")
 
