@@ -19,7 +19,7 @@ def plotExperiment(exp: pd.DataFrame, size: Tuple[int, int] = (20, 8)) -> None:
     """
     Function to plot important aspects about each experiment
     """
-    #Get landing time steps
+    #Get landing time steps #TODO: Arreglar esta parte del codigo
     try:
         landing_pos_obs_list = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))].index
         landing_pos_obs = landing_pos_obs_list[0]

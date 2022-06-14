@@ -74,17 +74,19 @@ def getColoredText(string: str, color:str, highlight: bool = False , hascolor:bo
 
     return text
 
-def confirmArgs(str) -> bool:
+def confirmArgs(string:str) -> bool:
     """
     Function to make sure that the arguments have been introduced correctly
     """
-    if str.lower() == "n":
+    if string.lower() == "n":
         print(f"\n{getColoredText('WARNING', 'magenta', highlight=True)}: Specify your \
 own arguments in the command-line. \nType {getColoredText('python3 fileAggregator.py -h', 'green')} \
 for more help")
         return False
-    else:
+    elif string.lower() == "y" or string.lower() == "":
         return True
+    else:
+        return False
 
 def getArgumentParser() -> argparse.ArgumentParser:
     """
@@ -93,7 +95,7 @@ def getArgumentParser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
             description="""
-    Archivo de python que analizará todos los experimentos buscando
+    ARCHIVO de python que analizará todos los experimentos buscando
     las estadísticas sobre ellos discutidas en el notebook fase7FE.ipynb
     """
             )
@@ -171,7 +173,6 @@ file will be {getColoredText(outfile, 'blue')}")
         if explands: 
             lands[expn] = explands
             
-            # X variance #TODO
 
         #}}}
         del exp
