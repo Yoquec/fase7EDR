@@ -2,16 +2,24 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import Tuple
-from termcolor import colored
+try: 
+    from termcolor import colored
+    COLORFUL = True
+except ImportError as ie:
+    COLORFUL = False
 
-WARNINGSTR = colored("WARNING", "red", attrs=["reverse", "blink"])
-WARNINGLEVE = colored("WARNING", "#ff9999", attrs=["reverse", "blink"])
+if COLORFUL:
+    WARNINGSTR = colored("WARNING", "red", attrs=["reverse", "blink"])
+    WARNINGLEVE = colored("WARNING", "magenta", attrs=["reverse", "blink"])
+else:
+    WARNINGSTR = "WARNING"
+    WARNINGLEVE = WARNINGSTR
 
 def plotExperiment(exp: pd.DataFrame, size: Tuple[int, int] = (20, 8)) -> None:
     """
     Function to plot important aspects about each experiment
     """
-    #Get landing time steps
+    #Get landing time steps #TODO: Arreglar esta parte del codigo
     try:
         landing_pos_obs_list = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))].index
         landing_pos_obs = landing_pos_obs_list[0]
