@@ -34,7 +34,7 @@ Created on Sat Jun 11 09:15:45 PM CEST 2022
 '''
 import argparse
 import os
-from f7utils import expLanded
+from f7utils import smoothY_pos, expLanded
 import pandas as pd
 import numpy as np
 from typing import Tuple, NewType
@@ -100,7 +100,7 @@ def getArgumentParser() -> argparse.ArgumentParser:
     """
             )
     # Adding optional arguments
-    parser.add_argument("-d", "--dataset", type=bool, help = "Decide wether to \
+    parser.add_argument("-d", "--dataset", type=int, help = "Decide wether to \
 use the training or testing set (Choose 0 for train and 1 for test)")
     parser.add_argument("-o", "--output_file", help = "File where the output\
  will dumped to")
@@ -114,8 +114,10 @@ def getArguments() -> Tuple[int, str]:
     """
     parser = getArgumentParser()
     args = parser.parse_args()
+    print(args.dataset)
 
-    if args.dataset: dataset = args.dataset
+    if args.dataset == 1: dataset = 1
+    elif args.dataset == 0: dataset = 0
     else: dataset = 0
 
     if args.output_file: outfile = args.output_file
@@ -165,7 +167,8 @@ file will be {getColoredText(outfile, 'blue')}")
     print(f"\n\t[{getColoredText('ANALYZING', 'cyan')}]: Analyzing csvs")
     expn = 0
     for expfile in summary.filename:
-        exp: pd.DataFrame = pd.read_csv(f"{DATAFOLDER}/{expfile}")
+        # Apply smoothing at opening to enable better landing detection
+        exp: pd.DataFrame = smoothY_pos(pd.read_csv(f"{DATAFOLDER}/{expfile}"))
         # Analisys magic: {{{
 
             # Experiment Landing

@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Union, List
 try: 
     from termcolor import colored
     COLORFUL = True
@@ -21,28 +21,10 @@ def plotExperiment(exp: pd.DataFrame, size: Tuple[int, int] = (20, 8)) -> None:
     """
     #Get landing time steps #TODO: Arreglar esta parte del codigo
     try:
-        landing_pos_obs_list = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))].index
+        # landing_pos_obs_list = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))].index
+        landing_pos_obs_list = getPossibleLandings(exp).index
         landing_pos_obs = landing_pos_obs_list[0]
 
-        # Check bounces
-        afterlanding = np.array(range(landing_pos_obs, exp.shape[0]))
-
-        if not sum(landing_pos_obs_list != afterlanding):
-            print("La nave no rebota")
-
-        #TODO: No es buena práctica, sustituir por len() != len()
-        else:
-            raise ValueError
-
-    
-
-    except ValueError as e:
-        print(f"{WARNINGLEVE}: La nave rebota varias veces")
-
-        #TODO: Empezar a mirar la lista desde abajo para ver cuándo es la última vez
-        # que rebota
-        landing_pos_obs_list = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))].index
-        landing_pos_obs = landing_pos_obs_list[0]
         
     except IndexError as e:
         alert = colored("Landing position lines will not be plotted!", "red")
@@ -95,7 +77,8 @@ def expLanded(exp: pd.DataFrame) -> int:
     Function that returns a 1 if the experiment landed
     and 0 if it didn't
     """
-    landed_obs = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))]
+    # landed_obs = exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1))]
+    landed_obs = getPossibleLandings(exp)
     landedtimes = landed_obs.shape[0]
 
     if landedtimes:
@@ -103,13 +86,61 @@ def expLanded(exp: pd.DataFrame) -> int:
     else:
         return 0
 
-def smoothY_pos(exper: pd.DataFrame, var:str = "y_pos") -> pd.DataFrame:
+def getPossibleLandings(exp: pd.DataFrame, y_pos_sensitivity: float = 0.005\
+        , y_vel_sensitivity: float = 0.05) -> pd.DataFrame:
     """
-    Function to clean unintended zeros (noise) like in the y_pos variable
+    Function that returns the DataFrame of all possible observations that may be landings.
+
+    We have to use constrains of minimum error because we have to remember that we are working 
+    with continous
+    """
+    return exp.loc[((exp["leg_1"] == 1) & (exp["leg_2"] == 1)) |\
+            ((abs(exp["y_pos"]) < y_pos_sensitivity) & (abs(exp["y_vel"]) < y_vel_sensitivity))]
+
+def expBounced(exp: pd.DataFrame) -> Union[ int, bool ]:
+    """
+    Function that returns wether an experiment bounced or not
+    """
+
+    landing_obs_list = getPossibleLandings(exp).index
+    landing_pos_obs = landing_obs_list[0]
+
+    # Hacemos una lista de indices desde que cae al suelo por primera vez hasta 
+    # El final de observaciones y vemos si los tamaños son iguales.
+    # Si lo son, entonces no habrá rebotado 
+    afterlanding = np.array(range(landing_pos_obs, exp.shape[0]))
+
+    if len(landing_obs_list) == len(afterlanding):
+        return 0
+
+    else:
+        return 1
+
+def getBounces(exp:pd.DataFrame) -> List[int]:
+    """
+    Function that gives us where have experiments bounced
+    It returns the timesteps where bounces have been detected
+    """
+    # If it didn't bounce, return the empty list
+    landing_pos_obs_list = getPossibleLandings(exp)
+
+    if landing_pos_obs_list.shape[0] == 0:
+        return []
+    else:
+        # TODO: Implement bounces
+        landing_idx = landing_pos_obs_list.index
+        landing_idx0: int = landing_idx[0]
+        afterlanding = np.array(range(landing_idx0, exp.shape[0]))
+
+        return [1]
+
+def smoothY_pos(exper: pd.DataFrame, var:str = "y_pos", y_pos_sensitivity: float = 0.005) -> pd.DataFrame:
+    """
+    Function to approximately clean unintended zeros (noise) like in the y_pos variable
     New value -> Mean of the two contiguous observations
     """
     explen = exper.shape[0]
-    zeroIdxs = exper[exper[var]==0].index.tolist()
+    zeroIdxs = exper[abs(exper[var])< y_pos_sensitivity].index.tolist()
 
     for i in zeroIdxs:
         if (i != 0) and (i != explen - 1):
