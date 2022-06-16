@@ -34,7 +34,7 @@ Created on Sat Jun 11 09:15:45 PM CEST 2022
 '''
 import argparse
 import os
-from f7utils import smoothY_pos, expLanded
+from f7utils import *
 import pandas as pd
 import numpy as np
 from typing import Tuple, NewType
@@ -161,7 +161,18 @@ file will be {getColoredText(outfile, 'blue')}")
     summary = pd.read_excel(f"data/experiments_summary_{DATASETS[dataset]}.xlsx", 0)
     
     # Prepare np arrays to add to the dataframe
-    lands = np.zeros(shape=summary.shape[0])
+    emptyArr = np.zeros(shape=summary.shape[0])
+    lands = emptyArr.copy()
+    nbounces = emptyArr.copy()
+    landingPerc = emptyArr.copy()
+    angVelMean = emptyArr.copy()
+    angVelVar = emptyArr.copy()
+    finalYmean = emptyArr.copy()
+    finalYvelMean = emptyArr.copy()
+    finalAng_velMean = emptyArr.copy()
+    mBoosterMean = emptyArr.copy()
+    mBoosterVar = emptyArr.copy()
+
 
     # Analize each of the experiments
     print(f"\n\t[{getColoredText('ANALYZING', 'cyan')}]: Analyzing csvs")
@@ -175,6 +186,30 @@ file will be {getColoredText(outfile, 'blue')}")
         explands = expLanded(exp)
         if explands: 
             lands[expn] = explands
+            landingPos, bounces = getBounces(exp)
+            landingPercI = landingPos/summary.shape[0]
+            nbounces[expn] = len(bounces)
+        else:
+            landingPercI = 1
+            
+        landingPerc[expn] = landingPercI
+
+            # Angular First Order stats
+        angVelMeanI, angVelVarI = angularVelFOStats(exp)
+        angVelMean[expn] = angVelMeanI
+        angVelVar[expn] = angVelVarI
+        
+            # finalYmean
+        finalYmean[expn] = meanFinalY_pos(exp, nObs=15)
+        finalYvelMean[expn] = meanFinalY_vel(exp, nObs=15)
+
+            # finalAng_velMean
+        finalAng_velMean[expn] = meanFinalAngVel(exp, nObs=50)
+            
+            # booster usage
+        mBoosterMeanI, mBoosterVarI = boosterUsed(exp)
+        mBoosterMean[expn] = mBoosterMeanI
+        mBoosterVar[expn] = mBoosterVarI
             
 
         #}}}
@@ -186,6 +221,15 @@ file will be {getColoredText(outfile, 'blue')}")
     # Add the new columns to the dataframe
     print(f"\n[{getColoredText('INFO', 'green')}]: Adding variables to the dataframe")
     summary["lands"] = lands
+    summary["landingPerc"] = landingPerc
+    summary["nbounces"] = nbounces
+    summary["angVelMean"] = angVelMean
+    summary["angVelVar"] = angVelVar
+    summary["finalYmean"] = finalYmean
+    summary["finalYvelMean"] = finalYvelMean
+    summary["finalAng_velMean"] = finalAng_velMean
+    summary["mBoosterMean"] = mBoosterMean
+    summary["mBoosterVar"] = mBoosterVar
 
     # Write the file
     print(f"\n[{getColoredText('INFO', 'green')}]: Saving the file to a csv format to {getColoredText('data/{}'.format(outfile), 'blue')}")
