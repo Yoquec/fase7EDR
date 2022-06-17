@@ -187,7 +187,7 @@ file will be {getColoredText(outfile, 'blue')}")
         if explands: 
             lands[expn] = explands
             landingPos, bounces = getBounces(exp)
-            landingPercI = landingPos/summary.shape[0]
+            landingPercI = landingPos/summary.total_timesteps[expn]
             nbounces[expn] = len(bounces)
         else:
             landingPercI = 1

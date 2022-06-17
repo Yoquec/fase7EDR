@@ -8,6 +8,8 @@ data
 # ignore test files
 test.*
 
+# R lint data
+.lintr
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
