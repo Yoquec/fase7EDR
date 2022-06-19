@@ -1,4 +1,4 @@
-##################################################
+f#################################################
 # Created on Fri Jun 17 11:00:29 AM CEST 2022
 
 # @file: fillGravityWindPower.R
@@ -68,6 +68,10 @@ train_idx <- createDataPartition(
 train_data <- data_samples[train_idx, ]
 test_data <- data_samples[-train_idx, ]
 
+# Prepare data for the knn build
+	# We need to remember to exclude `gravity` as it has missing data
+knn_bd_data <- train_data %>% select(-X, -filename, -gravity)
+
 # validation: repeated cross-validation
 ctrl <- trainControl(method = "repeatedcv",
                      repeats = 3,
@@ -84,7 +88,7 @@ registerDoParallel(cl)
 knn1_bd_model <- train(
     wind_power ~.,
     method = "knn",
-    data = train_data,
+    data = knn_bd_data,
     preProcess = c("center", "scale"),
     trControl = ctrl,
     tuneLength = 20
@@ -95,6 +99,48 @@ stopCluster(cl)
 # summary(knn1_bd_model)
 # names(knn1_bd_model)
 # print(knn1_bd_model$results)
+
+#-----------------------------------
+# Regression tree test (to replace)
+# knn
+# library(rpart)
+
+# # validation: repeated cross-validation
+# ctrl <- trainControl(method = "repeatedcv",
+#                      repeats = 3,
+#                      number = 5)
+
+# # Prepare doParallel
+# n_workers <- 3
+# cl <- makeCluster(n_workers)
+# registerDoParallel(cl)
+
+# tree_bd_model <- train(
+# 											 wind_power ~.,
+# 											 data = knn_bd_data,
+# 											 method = "rpart",
+# 											 preProcess = c("center", "scale"),
+# 											 control = rpart.control(maxdepth = 6),
+# 											 tuneLength = 20
+# )
+
+# stopCluster(cl)
+
+# # summary(tree_bd_model)
+# # names(tree_bd_model)
+# # print(tree_bd_model$results)
+# tree_optimal_cp <- as.numeric(tree_bd_model$bestTune[1])
+# print(tree_bd_model$bestTune)
+
+
+# tree_pt_model <- rpart(
+# 											 wind_power ~.,
+# 											 data = knn_bd_data,
+# 											 tuneLength = 20
+# )
+#-----------------------------------
+
+
 
 ##########################################
 # CHECKING THE ACCURACY OF OUR PROTOTYPE
@@ -116,7 +162,7 @@ knn1_pt_testdata <- test_data %>% select(-X, -filename, -gravity)
 
 # Get the predictions
 knn1_pt_pred <- predict(
-												knn1_pt_model, 
+												knn1_pt_model,
 												knn1_pt_testdata %>% select(-wind_power)
 )
 
@@ -126,10 +172,29 @@ computeABSerr <- function(true, pred) {
 }
 
 # Mean error of the model:
+"
+Tenemos un error medio de 5,33 cosa que se puede mejorar significativamente.
+A lo mejor implementando un regression tree sale mejor, pero al final del dia
+hay que recordar que esto es solo para rellenar NA's y de por sí es una mejora
+a lo que ya tenemos
+"
 head(knn1_pt_testdata$wind_power)
 head(knn1_pt_pred)
 print(computeABSerr(knn1_pt_testdata$wind_power, knn1_pt_pred))
-#NOTE: Problema en cómo he implementado el scaling
-# Tambien podemos usar la funcion class::knn para hacer estas predicciones
-# Pero implicaría construir el Knn cada vez que hacemos una predicción, no como
-# en el de caret
+
+#-----------------------------------
+# Regression tree predictions
+# tree_pt_model <- tree_bd_model$finalModel
+# tree_pt_pred <- as.vector(predict(
+# 												tree_pt_model,
+# 												knn1_pt_testdata %>% select(-wind_power)
+# ))
+
+# head(knn1_pt_testdata$wind_power)
+# head(tree_pt_pred)
+# summary(tree_pt_pred)
+
+# library(rpart.plot)
+# prp(tree_pt_model)
+# print(computeABSerr(knn1_pt_testdata$wind_power, tree_pt_pred))
+#-----------------------------------
