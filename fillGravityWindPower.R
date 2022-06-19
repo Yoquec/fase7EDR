@@ -198,3 +198,73 @@ print(computeABSerr(knn1_pt_testdata$wind_power, knn1_pt_pred))
 # prp(tree_pt_model)
 # print(computeABSerr(knn1_pt_testdata$wind_power, tree_pt_pred))
 #-----------------------------------
+
+##########################################
+# BUILDING THE FINAL KNN MODEL
+print(knn1_optimalK)
+
+ctrl <- trainControl(method = "none")
+
+# Build the final "fn" model
+knn1_crt <- train(
+    wind_power ~.,
+    method = "knn",
+    data = data_samples %>% select(-X, -filename, -gravity),
+    preProcess = c("center", "scale"),
+    trControl = ctrl,
+    tuneGrid = data.frame(k = knn1_optimalK)
+)
+
+knn1_final <- knn1_crt$finalModel
+(knn1_final)
+
+# Save the KNN model
+saveRDS(knn1_final, "wind_powerKnn.RDS")
+
+
+##########################################
+# PREDICTING MISSING VALUES
+# using the Knn model
+
+# Get missing indeces
+idx_ms_wp <- which(ag_data$wind_power == 0)
+idx_ms_wp_test <- which(ag_data_test$wind_power == 0)
+
+# Predict missnig wp in the training set
+miss_wind_wp <- predict(knn1_final, ag_data[idx_ms_wp, ] %>%
+												select(-X, -filename, -gravity, -efficiency, -wind_power))
+
+# Predict missnig wp in the testing set
+miss_wind_wp_test <- predict(knn1_final, ag_data_test[idx_ms_wp_test, ] %>%
+														 select(-X, -filename, -gravity, -wind_power))
+
+# Record the new values into the datasets
+ag_data$wind_power[idx_ms_wp] <- miss_wind_wp
+ag_data_test$wind_power[idx_ms_wp_test] <- miss_wind_wp_test
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# 										MARIO EMPIEZA AQUI
+# 							Borra esto luego anda porfa
+
+# Si no te encuentra los csv recuerda que los tienes que generar:
+
+# Para el train:
+#  > python fileAggregator.py -d 0 -o "CheckLandingV3.csv"
+
+# Para el test
+#  > python fileAggregator.py -d 1 -o "CheckLandingV3test.csv"
+
+# Si no te deja generarlos recuerda que tienes que meter todo lo
+# que contiene datos.zip (el que se descarga desde edrvass) en una
+# carpeta llamada `data`.
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+##########################################
+# PREPARE DATA FOR THE SECOND KNN
+
+# update comb_data with the updated dataframes
+comb_data <- rbind(
+									 ag_data %>% select(-efficiency),
+									 ag_data_test
+)
