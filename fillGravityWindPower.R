@@ -73,28 +73,19 @@ ctrl <- trainControl(method = "repeatedcv",
                      repeats = 3,
                      number = 5)
 
-# Create data for the knn builder model
-# (bd stands for "build", as in to show that we are still building the model
-# as a prototype, not as the final model to use)
-knn_bd_sc <- scale(train_data %>% select(-X, -filename, -gravity))
-knn_bd_data <- as.data.frame(knn_bd_sc)
-# head(knn_bd_data)
-
-# Get the scaling parameters used
-knn_bd_center <- attr(knn_bd_sc, "scaled:center")
-knn_bd_scale <- attr(knn_bd_sc, "scaled:scale")
-
 # Prepare doParallel
 n_workers <- 3
 cl <- makeCluster(n_workers)
 registerDoParallel(cl)
 
 # Train our knn model with caret
+# bd stands for "build", as in the model is still being 
+# built and is still in a prototype fase
 knn1_bd_model <- train(
     wind_power ~.,
     method = "knn",
-    data = knn_bd_data,
-    preProcess = c(),
+    data = train_data,
+    preProcess = c("center", "scale"),
     trControl = ctrl,
     tuneLength = 20
 )
@@ -112,19 +103,22 @@ stopCluster(cl)
 knn1_optimalK <- as.numeric(knn1_bd_model$bestTune[1])
 
 # Function to scale the testing data the same way as in the training set
-prepareTestingData <- function(testdf, cnt = knn_bd_center, scl = knn_bd_scale) {
-	return((testdf - cnt) / scl)
-}
+# prepareTestingData <- function(testdf, cnt = knn_bd_center, scl = knn_bd_scale) {
+# 	return((testdf - cnt) / scl)
+# }
 
 # Retrieve the prototype model from caret
 # (pt stands for 'prototype')
 knn1_pt_model <- knn1_bd_model$finalModel
 
 # Generate testing data from caret
-knn1_pt_testdata <- prepareTestingData(test_data %>% select(-X, -filename, -gravity))
+knn1_pt_testdata <- test_data %>% select(-X, -filename, -gravity)
 
 # Get the predictions
-knn1_pt_pred <- predict(knn1_pt_model, knn1_pt_testdata %>% select(-wind_power))
+knn1_pt_pred <- predict(
+												knn1_pt_model, 
+												knn1_pt_testdata %>% select(-wind_power)
+)
 
 # Get Absolute error of a prediction
 computeABSerr <- function(true, pred) {
