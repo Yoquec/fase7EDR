@@ -78,6 +78,7 @@ ctrl <- trainControl(method = "repeatedcv",
                      number = 5)
 
 # Prepare doParallel
+detectCores()
 n_workers <- 3
 cl <- makeCluster(n_workers)
 registerDoParallel(cl)
@@ -242,24 +243,6 @@ miss_wind_wp_test <- predict(knn1_final, ag_data_test[idx_ms_wp_test, ] %>%
 ag_data$wind_power[idx_ms_wp] <- miss_wind_wp
 ag_data_test$wind_power[idx_ms_wp_test] <- miss_wind_wp_test
 
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# 										MARIO EMPIEZA AQUI
-# 							Borra esto luego anda porfa
-
-# Si no te encuentra los csv recuerda que los tienes que generar:
-
-# Para el train:
-#  > python fileAggregator.py -d 0 -o "CheckLandingV3.csv"
-
-# Para el test
-#  > python fileAggregator.py -d 1 -o "CheckLandingV3test.csv"
-
-# Si no te deja generarlos recuerda que tienes que meter todo lo
-# que contiene datos.zip (el que se descarga desde edrvass) en una
-# carpeta llamada `data`.
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 ##########################################
 # PREPARE DATA FOR THE SECOND KNN
 
@@ -268,3 +251,106 @@ comb_data <- rbind(
 									 ag_data %>% select(-efficiency),
 									 ag_data_test
 )
+
+################################################
+# BUILDING THE SECOND KNN (GRAVITY)
+
+# Separate data observations from prediction ones
+data_samples_2  <- comb_data[-missing_grav,]
+predict_samples_2  <- comb_data[missing_grav,]
+
+# Separate into train and test sets
+set.seed(672)
+train_idx_2  <- createDataPartition(
+  data_samples_2$gravity,
+  p = 0.8,
+  list = F
+)
+
+train_data_2  <- data_samples_2[train_idx_2,]
+test_data_2  <- data_samples_2[-train_idx_2,]
+
+# Prepare the data for the KNN
+# Try with the generated values for `wind_power`
+knn_2_bd_data  <- train_data_2 %>% select(-X, -filename)
+
+# Repated Cross-Validation
+ctrl_2  <- trainControl(method = "repeatedcv",
+                        repeats = 3,
+                        number = 5)
+
+# Prepare doParallel
+n_workers_2  <- 3
+cl_2  <- makeCluster(n_workers_2)
+registerDoParallel(cl_2)
+
+# Train the KNN with the caret Package
+knn2_bd_model  <- train(gravity ~ .,
+                        method = "knn",
+                        data = knn_2_bd_data,
+                        preProcess = c("center", "scale"),
+                        trControl = ctrl_2,
+                        tuneLength = 20)
+
+stopCluster(cl_2)
+
+# CHECKING THE ACCURACY OF THE SECOND KNN PROTOTYPE
+# Retrieve the optimal k from the training
+knn2_optimal_K  <- as.numeric(knn2_bd_model$bestTune[1])
+
+# Retrieve the KNN protoype model from caret
+knn2_pt_model  <- knn2_bd_model$finalModel
+
+# Generate the testing data from caret
+knn2_pt_testdata  <- test_data_2 %>% select(-X, -filename)
+
+# Get the predictions
+knn2_pt_pred  <- predict(knn2_pt_model,
+                         knn2_pt_testdata %>% select(-gravity))
+
+head(knn2_pt_testdata$gravity)
+head(knn2_pt_pred)
+print(computeABSerr(knn2_pt_testdata$gravity, knn2_pt_pred))
+
+###########################################
+# BUILDING THE FINAL SECOND KNN MODEL
+print(knn2_optimal_K)
+
+ctrl_2 <- trainControl(method = "none")
+
+# Build the second final model
+knn2_crt <- train(
+  gravity ~.,
+  method = "knn",
+  data = data_samples %>% select(-X, -filename),
+  preProcess = c("center", "scale"),
+  trControl = ctrl_2,
+  tuneGrid = data.frame(k = knn2_optimal_K)
+)
+
+knn2_final <- knn2_crt$finalModel
+(knn2_final)
+
+# Save the KNN model
+saveRDS(knn2_final, "gravityKnn.RDS")
+
+
+##########################################
+# PREDICTING MISSING VALUES
+# using the model
+
+# Get missing indexes
+idx_ms_gravity <- which(ag_data$gravity == 0)
+idx_ms_gravity_test <- which(ag_data_test$gravity == 0)
+
+# Predict missing gravity in the training set
+miss_gravity <- predict(knn2_final, ag_data[idx_ms_gravity, ] %>%
+                          select(-X, -filename, -gravity, -efficiency))
+
+# Predict missing gravity in the testing set
+miss_gravity_test <- predict(knn2_final, ag_data_test[idx_ms_gravity_test, ] %>%
+                               select(-X, -filename, -gravity))
+
+# Record the new values into the datasets
+ag_data$gravity[idx_ms_gravity] <- miss_gravity
+ag_data_test$gravity[idx_ms_gravity_test] <- miss_gravity_test
