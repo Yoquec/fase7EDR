@@ -1,4 +1,4 @@
-f#################################################
+#################################################
 # Created on Fri Jun 17 11:00:29 AM CEST 2022
 
 # @file: fillGravityWindPower.R
@@ -10,6 +10,8 @@ library(dplyr)
 library(caret)
 library(class)
 library(doParallel)
+library(MASS)
+
 
 ##########################################
 # LOAD THE DATASETS
@@ -23,8 +25,8 @@ ag_data_test <- read.csv("data/CheckLandingV3test.csv")
 # Combine both datasets to get more observations
 # for the training of the KNN models
 comb_data <- rbind(
-									 ag_data %>% select(-efficiency),
-									 ag_data_test
+                   ag_data %>% dplyr::select(-efficiency),
+                   ag_data_test
 )
 
 # head(comb_data)
@@ -70,7 +72,7 @@ test_data <- data_samples[-train_idx, ]
 
 # Prepare data for the knn build
 	# We need to remember to exclude `gravity` as it has missing data
-knn_bd_data <- train_data %>% select(-X, -filename, -gravity)
+knn_bd_data <- train_data %>% dplyr::select(-X, -filename, -gravity)
 
 # validation: repeated cross-validation
 ctrl <- trainControl(method = "repeatedcv",
@@ -159,12 +161,12 @@ knn1_optimalK <- as.numeric(knn1_bd_model$bestTune[1])
 knn1_pt_model <- knn1_bd_model$finalModel
 
 # Generate testing data from caret
-knn1_pt_testdata <- test_data %>% select(-X, -filename, -gravity)
+knn1_pt_testdata <- test_data %>% dplyr::select(-X, -filename, -gravity)
 
 # Get the predictions
 knn1_pt_pred <- predict(
 												knn1_pt_model,
-												knn1_pt_testdata %>% select(-wind_power)
+												knn1_pt_testdata %>% dplyr::select(-wind_power)
 )
 
 # Get Absolute error of a prediction
@@ -210,7 +212,7 @@ ctrl <- trainControl(method = "none")
 knn1_crt <- train(
     wind_power ~.,
     method = "knn",
-    data = data_samples %>% select(-X, -filename, -gravity),
+    data = data_samples %>% dplyr::select(-X, -filename, -gravity),
     preProcess = c("center", "scale"),
     trControl = ctrl,
     tuneGrid = data.frame(k = knn1_optimalK)
@@ -233,11 +235,11 @@ idx_ms_wp_test <- which(ag_data_test$wind_power == 0)
 
 # Predict missnig wp in the training set
 miss_wind_wp <- predict(knn1_final, ag_data[idx_ms_wp, ] %>%
-												select(-X, -filename, -gravity, -efficiency, -wind_power))
+												dplyr::select(-X, -filename, -gravity, -efficiency, -wind_power))
 
 # Predict missnig wp in the testing set
 miss_wind_wp_test <- predict(knn1_final, ag_data_test[idx_ms_wp_test, ] %>%
-														 select(-X, -filename, -gravity, -wind_power))
+														 dplyr::select(-X, -filename, -gravity, -wind_power))
 
 # Record the new values into the datasets
 ag_data$wind_power[idx_ms_wp] <- miss_wind_wp
@@ -248,7 +250,7 @@ ag_data_test$wind_power[idx_ms_wp_test] <- miss_wind_wp_test
 
 # update comb_data with the updated dataframes
 comb_data <- rbind(
-									 ag_data %>% select(-efficiency),
+									 ag_data %>% dplyr::select(-efficiency),
 									 ag_data_test
 )
 
@@ -272,7 +274,7 @@ test_data_2  <- data_samples_2[-train_idx_2,]
 
 # Prepare the data for the KNN
 # Try with the generated values for `wind_power`
-knn_2_bd_data  <- train_data_2 %>% select(-X, -filename)
+knn_2_bd_data  <- train_data_2 %>% dplyr::select(-X, -filename)
 
 # Repated Cross-Validation
 ctrl_2  <- trainControl(method = "repeatedcv",
@@ -302,11 +304,11 @@ knn2_optimal_K  <- as.numeric(knn2_bd_model$bestTune[1])
 knn2_pt_model  <- knn2_bd_model$finalModel
 
 # Generate the testing data from caret
-knn2_pt_testdata  <- test_data_2 %>% select(-X, -filename)
+knn2_pt_testdata  <- test_data_2 %>% dplyr::select(-X, -filename)
 
 # Get the predictions
 knn2_pt_pred  <- predict(knn2_pt_model,
-                         knn2_pt_testdata %>% select(-gravity))
+                         knn2_pt_testdata %>% dplyr::select(-gravity))
 
 head(knn2_pt_testdata$gravity)
 head(knn2_pt_pred)
@@ -322,7 +324,7 @@ ctrl_2 <- trainControl(method = "none")
 knn2_crt <- train(
   gravity ~.,
   method = "knn",
-  data = data_samples %>% select(-X, -filename),
+  data = data_samples %>% dplyr::select(-X, -filename),
   preProcess = c("center", "scale"),
   trControl = ctrl_2,
   tuneGrid = data.frame(k = knn2_optimal_K)
@@ -345,12 +347,36 @@ idx_ms_gravity_test <- which(ag_data_test$gravity == 0)
 
 # Predict missing gravity in the training set
 miss_gravity <- predict(knn2_final, ag_data[idx_ms_gravity, ] %>%
-                          select(-X, -filename, -gravity, -efficiency))
+                          dplyr::select(-X, -filename, -gravity, -efficiency))
 
 # Predict missing gravity in the testing set
 miss_gravity_test <- predict(knn2_final, ag_data_test[idx_ms_gravity_test, ] %>%
-                               select(-X, -filename, -gravity))
+                               dplyr::select(-X, -filename, -gravity))
 
 # Record the new values into the datasets
 ag_data$gravity[idx_ms_gravity] <- miss_gravity
 ag_data_test$gravity[idx_ms_gravity_test] <- miss_gravity_test
+
+
+#mod_bic <- MASS::stepAIC(lm(Salary ~ ., data = Hitters), k = log(nrow(Hitters)), trace = 0)
+#modLasso <- glmnet(y = Y, x = X, alpha = 1, lambda = 0.5)
+#modRidge = cv.glmnet(x = X, y = Y, alpha = 0, nfolds = n)
+#car::vif(mod)
+#sort(car::vif(mod_bth), decreasing = TRUE)
+#sort(car::vif(mod_bth_int), decreasing = TRUE)
+
+################################################
+# REGRESSION MODEL 
+  # Using the BIC and VIF (Variance Inflation Factor)
+
+n_workers_3  <- 3
+cl_3 <- makeCluster(n_workers_3)
+registerDoParallel(cl_3)
+
+#mod_all <- lm(efficiency ~.^2, data = ag_data)
+mod_zero <- lm(efficiency ~1, data = ag_data)
+mod_bth_int <- MASS::stepAIC(object = mod_zero, k = log(nrow(ag_data)),
+                             scope = list(lower = mod_zro, upper = mod_all),
+                            direction = "both")
+
+stopCluster(cl_3)
