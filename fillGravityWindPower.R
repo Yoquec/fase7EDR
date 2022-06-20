@@ -6,12 +6,12 @@
 # @author: Yoquec
 ##################################################
 
-library(dplyr)
 library(caret)
 library(class)
 library(doParallel)
 library(MASS)
 library(car)
+library(dplyr)
 
 ##########################################
 # LOAD THE DATASETS
@@ -404,7 +404,7 @@ summary(mod_bth_int2)
 
 ##### AQUI APARECIA LA VARIABLE mBoosterVar COMO NO SIGNIFICATIVA, ASI QUE LA HE TENID QUE QUITAR MANUALMENTE
 
-update_f <- as.formula(paste(" ~ . -", mBoosterVar))
+update_f <- as.formula(paste(" ~ . -", "mBoosterVar"))
 mod_bth_int_final <- update(mod_bth_int_vif, formula. = update_f)
 
 summary(mod_bth_int_final)
@@ -430,5 +430,54 @@ repeat {
 
 }
 
-summary(mod_bth_int_vif)
+call_mod <- summary(mod_bth_int_vif)$call
 car::vif(mod_bth_int_vif)
+
+####################################################
+# PREDICTIONS
+
+# trainset : ag_data
+# testset : ag_data_test
+print(call_mod)
+
+# preds <- predict(mod_bth_int_vif,
+#                  ag_data %>% dplyr::select(-X, -filename, -efficiency))
+
+k <- 5
+
+avgErrors <- matrix(0,k)
+
+for (i in 1:k) {
+    train_idx <- caret::createDataPartition(
+        ag_data$efficiency,
+        p = 0.8,
+        list = FALSE
+    )
+
+    train <- ag_data[train_idx, ]
+    test <- ag_data[-train_idx, ]
+
+    mod <- lm(formula = call_mod$formula, data = train)
+
+    preds <- predict(mod, test %>% dplyr::select(-efficiency))
+
+    avgError <- mean(abs(test$efficiency - preds))
+    print(avgError)
+    avgErrors[i] <- avgError
+}
+
+mean(avgErrors)
+
+####################################################
+# Final predictions
+final_preds <- predict(mod_bth_int_vif, ag_data_test)
+head(final_preds)
+summary(final_preds)
+
+
+final_out <- round(final_preds, digits = 2)
+head(final_out)
+head(ag_data_test)
+
+write.csv(final_out, "finales.csv")
+nrow(ag_data_test)
