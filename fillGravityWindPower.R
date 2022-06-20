@@ -11,7 +11,7 @@ library(caret)
 library(class)
 library(doParallel)
 library(MASS)
-
+library(car)
 
 ##########################################
 # LOAD THE DATASETS
@@ -36,6 +36,7 @@ comb_data <- rbind(
 
 missing_grav <- which(comb_data$gravity == 0)
 missing_windpw <- which(comb_data$wind_power == 0)
+
 # length(missing_grav)
 # length(missing_windpw)
 # head(comb_data[missing_grav, ])
@@ -64,7 +65,7 @@ set.seed(69420)
 train_idx <- createDataPartition(
     data_samples$wind_power,
     p = 0.8,
-    list = F
+    list = FALSE
 )
 
 train_data <- data_samples[train_idx, ]
@@ -322,7 +323,7 @@ ctrl_2 <- trainControl(method = "none")
 
 # Build the second final model
 knn2_crt <- train(
-  gravity ~.,
+  gravity ~ .,
   method = "knn",
   data = data_samples %>% dplyr::select(-X, -filename),
   preProcess = c("center", "scale"),
@@ -357,26 +358,77 @@ miss_gravity_test <- predict(knn2_final, ag_data_test[idx_ms_gravity_test, ] %>%
 ag_data$gravity[idx_ms_gravity] <- miss_gravity
 ag_data_test$gravity[idx_ms_gravity_test] <- miss_gravity_test
 
-
-#mod_bic <- MASS::stepAIC(lm(Salary ~ ., data = Hitters), k = log(nrow(Hitters)), trace = 0)
-#modLasso <- glmnet(y = Y, x = X, alpha = 1, lambda = 0.5)
-#modRidge = cv.glmnet(x = X, y = Y, alpha = 0, nfolds = n)
-#car::vif(mod)
-#sort(car::vif(mod_bth), decreasing = TRUE)
-#sort(car::vif(mod_bth_int), decreasing = TRUE)
-
 ################################################
 # REGRESSION MODEL 
-  # Using the BIC and VIF (Variance Inflation Factor)
+### Using the BIC and VIF (Variance Inflation Factor)
+###### Updated (with Mario)
 
-n_workers_3  <- 3
-cl_3 <- makeCluster(n_workers_3)
-registerDoParallel(cl_3)
-
-#mod_all <- lm(efficiency ~.^2, data = ag_data)
-mod_zero <- lm(efficiency ~1, data = ag_data)
+mod_all <- lm(efficiency ~.^2, data = ag_data %>% dplyr::select(-X, -filename))
+mod_zero <- lm(efficiency ~1, data = ag_data %>% dplyr::select(-X, -filename))
 mod_bth_int <- MASS::stepAIC(object = mod_zero, k = log(nrow(ag_data)),
-                             scope = list(lower = mod_zro, upper = mod_all),
-                            direction = "both")
+                             scope = list(lower = mod_zero, upper = mod_all),
+                             direction = "both")
 
-stopCluster(cl_3)
+
+#################################################
+### Eliminate variables with high collinearity (VIF value 10 or above)
+
+
+max_vif <- 10
+mod_bth_int_vif <- mod_bth_int
+repeat {
+
+  vifs <- sort(car::vif(mod_bth_int_vif), decreasing = TRUE)
+  print(vifs)
+
+  # Update or not?
+  if (max(vifs) < max_vif) {
+
+    break
+
+  } else {
+
+    update_f <- as.formula(paste(" ~ . -", names(vifs[1])))
+    mod_bth_int_vif <- update(mod_bth_int_vif, formula. = update_f)
+
+  }
+
+}
+
+summary(mod_bth_int_vif)
+
+mod_bth_int2 <- MASS::stepAIC(object = mod_bth_int_vif, k = log(nrow(ag_data)),
+                             direction = "backward")
+
+summary(mod_bth_int2)
+
+##### AQUI APARECIA LA VARIABLE mBoosterVar COMO NO SIGNIFICATIVA, ASI QUE LA HE TENID QUE QUITAR MANUALMENTE
+
+update_f <- as.formula(paste(" ~ . -", mBoosterVar))
+mod_bth_int_final <- update(mod_bth_int_vif, formula. = update_f)
+
+summary(mod_bth_int_final)
+
+max_vif <- 10
+mod_bth_int_vif <- mod_bth_int_final
+repeat {
+
+  vifs <- sort(car::vif(mod_bth_int_vif), decreasing = TRUE)
+  print(vifs)
+
+  # Update or not?
+  if (max(vifs) < max_vif) {
+
+    break
+
+  } else {
+
+    update_f <- as.formula(paste(" ~ . -", names(vifs[1])))
+    mod_bth_int_vif <- update(mod_bth_int_vif, formula. = update_f)
+
+  }
+
+}
+
+summary(mod_bth_int_vif)
+car::vif(mod_bth_int_vif)
