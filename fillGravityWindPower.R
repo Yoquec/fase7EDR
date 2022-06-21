@@ -445,28 +445,95 @@ print(call_mod)
 
 k <- 5
 
-avgErrors <- matrix(0,k)
+ComputeRMSE <- function(train_data, k, target, formula){
+	avgErrors <- matrix(0, k)
 
-for (i in 1:k) {
-    train_idx <- caret::createDataPartition(
-        ag_data$efficiency,
-        p = 0.8,
-        list = FALSE
-    )
+	for (i in 1:k) {
+			train_idx <- caret::createDataPartition(
+					train_data$efficiency,
+					p = 0.8,
+					list = FALSE
+			)
 
-    train <- ag_data[train_idx, ]
-    test <- ag_data[-train_idx, ]
+			train <- train_data[train_idx, ]
+			test <- train_data[-train_idx, ]
 
-    mod <- lm(formula = call_mod$formula, data = train)
+			mod <- lm(formula = formula, data = train)
 
-    preds <- predict(mod, test %>% dplyr::select(-efficiency))
+			preds <- predict(mod, dplyr::select(test,-target))
 
-    avgError <- mean(abs(test$efficiency - preds))
-    print(avgError)
-    avgErrors[i] <- avgError
+			# compute RMSE
+			avgError <- sqrt(mean((test$efficiency - preds)^2))
+			print(avgError)
+			avgErrors[i] <- avgError
+	}
+
+	return(avgErrors)
 }
 
-mean(avgErrors)
+ComputeRMSE(train, 5, "efficiency", formula = call_mod$formula)
+
+# Get a distribution of the expected error if we hand in this model
+# hist(as.vector(ComputeRMSE(train, 1000, "efficiency", formula = call_mod$formula)[,1]))
+####################################################
+# TRY LASSO REGRESSION
+library(glmnet)
+
+x <- model.matrix(data = ag_data %>% select(-filename, -X), efficiency ~ .)
+y <- ag_data$efficiency
+
+head(x)
+
+kCVlassoMod <- cv.glmnet(x = x, y = y, alpha = 1, nfolds = 10)
+plot(kCVlassoMod)
+
+#Lambda that minimzes the CV error
+kCVlassoMod$lambda.min
+
+# Demasiado cerca del principio, utilizaremos la "one sd rule"
+kCVlassoMod$lambda.1se
+optimalLambda <- kCVlassoMod$lambda.1se
+
+# Coger el mejor modelo
+modLassoCV <- kCVlassoMod$glmnet.fit
+
+plot(modLassoCV, xvar = "lambda", label = T)
+
+ComputeRMSElasso <- function(train_data, k, target, lambda){
+	avgErrors <- matrix(0, k)
+
+	for (i in 1:k) {
+			train_idx <- caret::createDataPartition(
+					train_data$efficiency,
+					p = 0.8,
+					list = FALSE
+			)
+
+			train <- train_data[train_idx, ]
+			test <- dplyr::select(train_data[-train_idx, ], -"filename", -"X")
+
+			x <- model.matrix(data = dplyr::select(train, -"filename", -"X"), efficiency ~ .)
+			y <- train$efficiency
+
+			mod <- glmnet::glmnet(x = x, y = y, alpha = 1, lambda = lambda)
+
+			# mod <- lm(formula = call_mod$formula, data = train)
+
+			preds <- predict(mod, type = "response", s = lambda, newx = as.matrix(test))
+
+			# compute RMSE
+			avgError <- sqrt(mean((test$efficiency - preds)^2))
+			print(avgError)
+			avgErrors[i] <- avgError
+	}
+
+	return(avgErrors)
+}
+
+ComputeRMSElasso(ag_data, 5, "efficiency", optimalLambda)
+# ComputeRMSElasso(ag_data, 5, "efficiency", kCVlassoMod$lambda.min)
+
+"Como podemos ver, Lasso acaba dando peores resultados que la regresión normal"
 
 ####################################################
 # Final predictions
@@ -479,5 +546,5 @@ final_out <- round(final_preds, digits = 2)
 head(final_out)
 head(ag_data_test)
 
+# Write to a csv to extract with python
 write.csv(final_out, "finales.csv")
-nrow(ag_data_test)
